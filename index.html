@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta 広告プレビュー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#f5f5f5;color:#1a1a1a;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e0e0e0;padding:14px 24px;display:flex;align-items:center;gap:12px}
+header h1{font-size:16px;font-weight:600;color:#1a1a1a}
+header span{font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:12px}
+.container{max-width:1100px;margin:0 auto;padding:24px 20px}
+
+/* Tabs */
+.tab-scroll{overflow-x:auto;margin-bottom:20px;-webkit-overflow-scrolling:touch}
+.tab-scroll::-webkit-scrollbar{height:3px}
+.tab-scroll::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+.tabs{display:flex;gap:6px;min-width:max-content;border-bottom:1px solid #e0e0e0;padding-bottom:0}
+.tab{padding:8px 16px;font-size:13px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;background:transparent;color:#666;cursor:pointer;transition:all .15s;white-space:nowrap;position:relative;bottom:-1px}
+.tab:hover{background:#f5f5f5;color:#333}
+.tab.on{background:#fff;color:#1a1a1a;border-color:#e0e0e0;border-bottom-color:#fff;font-weight:500}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
+@media(max-width:720px){.layout{grid-template-columns:1fr}}
+
+/* Input panel */
+.panel{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:20px}
+.panel-title{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.spec-box{background:#f8f8f8;border-radius:8px;padding:10px 12px;font-size:11px;color:#666;line-height:1.7;margin-bottom:14px;border-left:3px solid #0095f6}
+.spec-box b{color:#333;font-weight:600}
+.divider{height:1px;background:#f0f0f0;margin:14px 0}
+.field{margin-bottom:12px}
+.field label{font-size:12px;color:#555;display:block;margin-bottom:4px;font-weight:500}
+.field input,.field textarea{width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1a1a1a;resize:none;transition:border .15s}
+.field input:focus,.field textarea:focus{outline:none;border-color:#0095f6}
+.cc{font-size:11px;color:#aaa;text-align:right;margin-top:2px}
+.cc.warn{color:#e74c3c}
+.upbtn{width:100%;padding:10px;border:1.5px dashed #ccc;border-radius:8px;background:transparent;cursor:pointer;font-size:12px;color:#666;text-align:center;transition:all .15s}
+.upbtn:hover{border-color:#0095f6;color:#0095f6;background:#f0f7ff}
+.img-preview{width:100%;height:80px;object-fit:cover;border-radius:6px;margin-top:6px;border:1px solid #eee}
+
+/* Preview area */
+.pv-wrap{background:#f0f0f0;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center}
+.pv-label{font-size:11px;color:#888;margin-bottom:16px;font-weight:500}
+.pv-actions{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.safe-label{display:flex;align-items:center;gap:5px;font-size:12px;color:#666;cursor:pointer}
+.safe-label input{cursor:pointer;accent-color:#e74c3c}
+.dl-btn{padding:7px 16px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:12px;color:#333;display:flex;align-items:center;gap:5px;font-weight:500;transition:all .15s}
+.dl-btn:hover{background:#f5f5f5;border-color:#bbb}
+.dl-note{font-size:11px;color:#888;margin-top:6px}
+
+/* Phone */
+.phone{position:relative;flex-shrink:0}
+.phone-shell{position:absolute;inset:0;z-index:10;pointer-events:none}
+.phone-screen{position:absolute;overflow:hidden;background:#000;z-index:1}
+.phone-inner{width:100%;height:100%;position:relative;overflow:hidden}
+
+/* Safe zone */
+.sz-top,.sz-bottom,.sz-left,.sz-right{position:absolute;z-index:6;pointer-events:none}
+.sz-top,.sz-bottom{left:0;right:0;background:rgba(231,76,60,.15)}
+.sz-left,.sz-right{top:0;bottom:0;background:rgba(231,76,60,.1)}
+.sz-top{top:0;border-bottom:1.5px dashed rgba(231,76,60,.7)}
+.sz-bottom{bottom:0;border-top:1.5px dashed rgba(231,76,60,.7)}
+.sz-left{left:0;border-right:1.5px dashed rgba(231,76,60,.5)}
+.sz-right{right:0;border-left:1.5px dashed rgba(231,76,60,.5)}
+
+/* Fullscreen */
+.fs-ad{width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.fs-ad img,.feed-img-el{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.fs-ph{font-size:10px;color:#888;text-align:center;padding:16px;z-index:1;position:relative;line-height:1.6}
+
+/* Story UI */
+.s-prog{position:absolute;top:8px;left:8px;right:8px;height:2px;background:rgba(255,255,255,.35);border-radius:1px;z-index:4}
+.s-prog-f{height:100%;width:55%;background:#fff;border-radius:1px}
+.s-hdr{position:absolute;top:14px;left:8px;right:8px;display:flex;align-items:center;gap:6px;z-index:4}
+.s-av{width:24px;height:24px;border-radius:50%;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.s-nm{font-size:10px;font-weight:600;color:#fff}
+.s-sp{font-size:8px;color:rgba(255,255,255,.8)}
+.s-x{margin-left:auto;font-size:13px;color:#fff}
+.s-foot{position:absolute;bottom:0;left:0;right:0;padding:8px 8px 16px;z-index:4}
+.s-cta{background:rgba(255,255,255,.18);border-radius:20px;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.s-cta-t{font-size:9px;color:#fff;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-cta-b{background:#fff;color:#0095f6;border:none;border-radius:12px;padding:5px 10px;font-size:8px;font-weight:700;cursor:pointer;flex-shrink:0;margin-left:8px}
+.s-sw{text-align:center;font-size:8px;color:rgba(255,255,255,.75)}
+
+/* Reel UI */
+.r-hdr{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;justify-content:space-between;z-index:4}
+.r-t{font-size:13px;font-weight:700;color:#fff}
+.r-right{position:absolute;right:6px;top:50%;transform:translateY(-60%);display:flex;flex-direction:column;gap:14px;align-items:center;z-index:4}
+.r-ic{display:flex;flex-direction:column;align-items:center;gap:2px}
+.r-ic-c{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff}
+.r-ic-l{font-size:7px;color:#fff}
+.r-foot{position:absolute;bottom:28px;left:0;right:0;padding:0 8px;z-index:4}
+.r-acc{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.r-av{width:22px;height:22px;border-radius:50%;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;flex-shrink:0}
+.r-nm{font-size:10px;font-weight:600;color:#fff}
+.r-sp{font-size:8px;color:rgba(255,255,255,.7);margin-left:4px}
+.r-cap{font-size:9px;color:#fff;line-height:1.4;max-width:78%;margin-bottom:5px}
+.r-learn{background:rgba(255,255,255,.22);border-radius:4px;padding:5px 10px;font-size:9px;color:#fff;display:inline-block}
+.r-nav{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);padding:5px 0;display:flex;justify-content:space-around;z-index:5}
+.r-nav-i{font-size:15px;text-align:center}
+
+/* FB/IG Feed */
+.feed-wrap{background:#fff;height:100%;overflow:hidden;display:flex;flex-direction:column}
+.feed-topbar{padding:6px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid #dddfe2;flex-shrink:0}
+.feed-scroll{overflow:auto;flex:1}
+.f-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.f-pg{font-size:11px;font-weight:700;color:#050505}
+.f-sp{font-size:9px;color:#65676b}
+.f-cap{padding:0 8px 6px;font-size:10px;color:#050505;line-height:1.5}
+.f-media{width:100%;background:#e8eaed;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
+.f-media-ph{font-size:9px;color:#888;text-align:center;padding:10px;line-height:1.6}
+.f-ctabar{background:#f0f2f5;padding:7px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0}
+.f-cta-hl{font-size:10px;font-weight:700;color:#050505}
+.f-cta-url{font-size:8px;color:#65676b}
+.f-cta-btn{background:#1877f2;color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.f-reactions{padding:5px 8px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #dddfe2;flex-shrink:0}
+.f-react-l{font-size:8px;color:#65676b}
+.f-react-r{display:flex;gap:10px;font-size:8px;color:#65676b}
+.f-nav{padding:5px 0;display:flex;justify-content:space-around;border-top:0.5px solid #dddfe2;background:#fff;flex-shrink:0}
+.f-nav-i{font-size:14px}
+
+/* IG Feed */
+.ig-logo{font-size:13px;font-weight:800;font-style:italic;color:#262626}
+.ig-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.ig-pg{font-size:10px;font-weight:700;color:#262626}
+.ig-sp{font-size:8px;color:#8e8e8e}
+.ig-acts{padding:6px 8px;display:flex;justify-content:space-between}
+.ig-acts-l{display:flex;gap:10px;font-size:14px}
+.ig-caption{padding:0 8px 4px;font-size:10px;color:#262626;line-height:1.4}
+.ig-cta{margin:4px 8px 8px;background:#efefef;border-radius:6px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between}
+.ig-cta-hl{font-size:10px;font-weight:700;color:#262626}
+.ig-cta-btn{background:#0095f6;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>Meta 広告プレビュー</h1>
+  <span>社内用</span>
+</header>
+<div class="container">
+  <div class="tab-scroll">
+    <div class="tabs" id="tabs"></div>
+  </div>
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-title" id="ptitle">入力</div>
+      <div id="iarea"></div>
+    </div>
+    <div>
+      <div class="pv-wrap">
+        <div class="pv-label" id="pvlbl"></div>
+        <div id="pmount"></div>
+        <div class="pv-actions">
+          <label class="safe-label" id="szwrap" style="display:none">
+            <input type="checkbox" id="szchk" onchange="render()"> セーフゾーンを表示
+          </label>
+          <button class="dl-btn" onclick="dlPNG()">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            PNG保存
+          </button>
+        </div>
+        <div class="dl-note" id="dlnote"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const TABS=[
+  {id:'ig-feed-45', label:'IG フィード 4:5'},
+  {id:'ig-feed-11', label:'IG フィード 1:1'},
+  {id:'ig-story',   label:'IG ストーリーズ'},
+  {id:'ig-reel',    label:'IG リール'},
+  {id:'fb-feed',    label:'FB フィード'},
+  {id:'fb-story',   label:'FB ストーリーズ'},
+];
+
+const FMTS={
+  'ig-feed-45':{
+    title:'Instagram フィード（4:5）',
+    pw:220,ph:440,sx:9,sy:9,
+    safeT:0,safeB:0,safeS:0,
+    spec:'<b>推奨サイズ:</b> 1080×1350px（4:5）<br><b>メインテキスト:</b> 最大150字<br><b>見出し:</b> 最大27字',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',150,3)+fc('見出し','hl',27)+fp('表示URL','url','example.com')+fup('バナー画像（1080×1350px）','img'),
+    html:()=>igFeed('4:5')
+  },
+  'ig-feed-11':{
+    title:'Instagram フィード（1:1）',
+    pw:220,ph:440,sx:9,sy:9,
+    safeT:0,safeB:0,safeS:0,
+    spec:'<b>推奨サイズ:</b> 1080×1080px（1:1）<br><b>メインテキスト:</b> 最大150字<br><b>見出し:</b> 最大27字',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',150,3)+fc('見出し','hl',27)+fp('表示URL','url','example.com')+fup('バナー画像（1080×1080px）','img'),
+    html:()=>igFeed('1:1')
+  },
+  'ig-story':{
+    title:'Instagram ストーリーズ（9:16）',
+    pw:210,ph:430,sx:9,sy:9,
+    safeT:14,safeB:20,safeS:0,
+    spec:'<b>推奨サイズ:</b> 1440×2560px（9:16）<br><b>メインテキスト:</b> 最大125字<br><b>セーフゾーン:</b> 上14% / 下20%',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',125,3)+fup('バナー画像（1440×2560px）','img'),
+    html:()=>storyHTML('ig')
+  },
+  'ig-reel':{
+    title:'Instagram リール（9:16）',
+    pw:210,ph:430,sx:9,sy:9,
+    safeT:14,safeB:35,safeS:6,
+    spec:'<b>推奨サイズ:</b> 1440×2560px（9:16）<br><b>メインテキスト:</b> 最大72字<br><b>セーフゾーン:</b> 上14% / 下35% / 両側6%',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',72,2)+fup('バナー画像（1440×2560px）','img'),
+    html:()=>reelHTML()
+  },
+  'fb-feed':{
+    title:'Facebook フィード（1:1）',
+    pw:220,ph:450,sx:9,sy:9,
+    safeT:0,safeB:0,safeS:0,
+    spec:'<b>推奨サイズ:</b> 1440×1440px（1:1）<br><b>メインテキスト:</b> 50〜150字<br><b>見出し:</b> 最大27字',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',150,3)+fc('見出し','hl',27)+fp('表示URL','url','example.com')+fup('バナー画像（1440×1440px）','img'),
+    html:()=>fbFeed()
+  },
+  'fb-story':{
+    title:'Facebook ストーリーズ（9:16）',
+    pw:210,ph:430,sx:9,sy:9,
+    safeT:14,safeB:20,safeS:0,
+    spec:'<b>推奨サイズ:</b> 1440×2560px（9:16）<br><b>メインテキスト:</b> 最大125字<br><b>セーフゾーン:</b> 上14% / 下20%',
+    fields:()=>fp('ページ名','pg','ページ名')+fc('メインテキスト','body',125,3)+fup('バナー画像（1440×2560px）','img'),
+    html:()=>storyHTML('fb')
+  },
+};
+
+let cur='ig-feed-45', imgs={};
+function v(id){return(document.getElementById(id)||{}).value||'';}
+function cc(id,max){
+  const el=document.getElementById(id);if(!el)return;
+  const n=el.value.length;
+  const c=document.getElementById('cc-'+id);
+  if(c){c.textContent=n+' / '+max;c.className='cc'+(n>=max*.9?' warn':'');}
+}
+function imgUp(key){
+  let fi=document.getElementById('fi-'+key);
+  if(!fi){fi=document.createElement('input');fi.type='file';fi.accept='image/*';fi.id='fi-'+key;fi.style.display='none';document.body.appendChild(fi);}
+  fi.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      imgs[key+cur]=ev.target.result;
+      const prev=document.getElementById('prev-'+key);
+      if(prev){prev.src=ev.target.result;prev.style.display='block';}
+      render();
+    };
+    r.readAsDataURL(f);
+  };
+  fi.click();
+}
+function fp(lbl,id,ph){return`<div class="field"><label>${lbl}</label><input type="text" id="${id}" placeholder="${ph}" oninput="render()"></div>`;}
+function fc(lbl,id,max,rows){
+  const t=rows?'textarea':'input';const a=rows?`rows="${rows}"`:'type="text"';
+  return`<div class="field"><label>${lbl}（最大${max}字）</label><${t} id="${id}" maxlength="${max}" ${a} oninput="cc('${id}',${max});render()"></${t}><div class="cc" id="cc-${id}">0 / ${max}</div></div>`;
+}
+function fup(lbl,key){
+  return`<div class="field">
+    <button class="upbtn" onclick="imgUp('${key}')">+ ${lbl}</button>
+    <img id="prev-${key}" class="img-preview" style="display:none" alt="プレビュー">
+  </div>`;
+}
+
+function storyHTML(platform){
+  const pg=v('pg')||'ページ名';const body=v('body')||'メインテキストを入力';
+  const src=imgs['img'+cur];
+  const color=platform==='fb'?'#1877f2':'#c13584';
+  return`<div class="fs-ad">
+    ${src?`<img class="feed-img-el" src="${src}" alt="">`:'<div class="fs-ph">画像をアップロード<br>推奨サイズ: 9:16<br>1440×2560px</div>'}
+    <div class="s-prog"><div class="s-prog-f"></div></div>
+    <div class="s-hdr">
+      <div class="s-av" style="background:${color}">${pg.charAt(0).toUpperCase()}</div>
+      <div><div class="s-nm">${pg}</div><div class="s-sp">Sponsored</div></div>
+      <div class="s-x">✕</div>
+    </div>
+    <div class="s-foot">
+      <div class="s-cta">
+        <div class="s-cta-t">${body.slice(0,50)}${body.length>50?'…':''}</div>
+        <button class="s-cta-b">詳しくはこちら</button>
+      </div>
+      <div class="s-sw">↑ 詳細を見る</div>
+    </div>
+  </div>`;
+}
+
+function reelHTML(){
+  const pg=v('pg')||'ページ名';const body=v('body')||'メインテキストを入力';
+  const src=imgs['img'+cur];
+  return`<div class="fs-ad">
+    ${src?`<img class="feed-img-el" src="${src}" alt="">`:'<div class="fs-ph">画像をアップロード<br>推奨サイズ: 9:16<br>1440×2560px</div>'}
+    <div class="r-hdr"><div class="r-t">Reels</div><span style="font-size:14px;color:#fff">📷</span></div>
+    <div class="r-right">
+      <div class="r-ic"><div class="r-ic-c">♥</div><div class="r-ic-l">823k</div></div>
+      <div class="r-ic"><div class="r-ic-c">💬</div><div class="r-ic-l">51</div></div>
+      <div class="r-ic"><div class="r-ic-c">↗</div><div class="r-ic-l"></div></div>
+      <div class="r-ic"><div class="r-ic-c">⋯</div><div class="r-ic-l"></div></div>
+    </div>
+    <div class="r-foot">
+      <div class="r-acc">
+        <div class="r-av" style="background:#c13584">${pg.charAt(0).toUpperCase()}</div>
+        <div class="r-nm">${pg}</div>
+        <div class="r-sp">Sponsored</div>
+      </div>
+      <div class="r-cap">${body.slice(0,60)}${body.length>60?'…':''}</div>
+      <div class="r-learn">Learn more ›</div>
+    </div>
+    <div class="r-nav">
+      <div class="r-nav-i">🏠</div><div class="r-nav-i">🔍</div>
+      <div class="r-nav-i" style="color:#0095f6">▣</div>
+      <div class="r-nav-i">🛍</div><div class="r-nav-i">👤</div>
+    </div>
+  </div>`;
+}
+
+function igFeed(ratio){
+  const pg=v('pg')||'ページ名';const body=v('body')||'メインテキストを入力';
+  const hl=v('hl')||'広告見出し';const url=v('url')||'example.com';
+  const src=imgs['img'+cur];
+  const h=ratio==='4:5'?'160px':'130px';
+  return`<div class="feed-wrap">
+    <div class="feed-topbar">
+      <div class="ig-logo">Instagram</div>
+      <div style="display:flex;gap:10px;font-size:15px">♥ 💬</div>
+    </div>
+    <div class="feed-scroll">
+      <div style="padding:6px 8px;display:flex;align-items:center;gap:6px">
+        <div class="ig-av">${pg.charAt(0).toUpperCase()}</div>
+        <div><div class="ig-pg">${pg}</div><div class="ig-sp">Sponsored</div></div>
+        <div style="margin-left:auto;font-size:14px;color:#8e8e8e">⋯</div>
+      </div>
+      <div class="f-media" style="height:${h}">
+        ${src?`<img class="feed-img-el" src="${src}" alt="">`:`<div class="f-media-ph">画像をアップロード<br>${ratio==='4:5'?'1080×1350px':'1080×1080px'}</div>`}
+      </div>
+      <div class="ig-acts">
+        <div class="ig-acts-l"><span>♥</span><span>💬</span><span>↗</span></div>
+        <span style="font-size:14px">🔖</span>
+      </div>
+      <div class="ig-caption"><span style="font-weight:700">${pg}</span> ${body}</div>
+      <div class="ig-cta">
+        <div><div class="ig-cta-hl">${hl}</div><div style="font-size:8px;color:#8e8e8e">${url}</div></div>
+        <button class="ig-cta-btn">詳しくはこちら</button>
+      </div>
+    </div>
+    <div class="f-nav">
+      <span class="f-nav-i">🏠</span><span class="f-nav-i">🔍</span>
+      <span class="f-nav-i">➕</span><span class="f-nav-i">🛍</span>
+      <span class="f-nav-i">👤</span>
+    </div>
+  </div>`;
+}
+
+function fbFeed(){
+  const pg=v('pg')||'ページ名';const body=v('body')||'メインテキストを入力';
+  const hl=v('hl')||'広告見出し';const url=v('url')||'example.com';
+  const src=imgs['img'+cur];
+  return`<div class="feed-wrap">
+    <div class="feed-topbar">
+      <div style="font-size:18px;font-weight:900;color:#1877f2">f</div>
+      <div style="display:flex;gap:8px;font-size:14px">🔍 💬</div>
+    </div>
+    <div class="feed-scroll">
+      <div style="padding:6px 8px;display:flex;align-items:center;gap:6px">
+        <div class="f-av" style="background:#1877f2">${pg.charAt(0).toUpperCase()}</div>
+        <div>
+          <div class="f-pg">${pg}</div>
+          <div class="f-sp">Sponsored · 🌐</div>
+        </div>
+        <div style="margin-left:auto;font-size:14px;color:#606770">⋯</div>
+      </div>
+      <div class="f-cap">${body}</div>
+      <div class="f-media" style="height:130px">
+        ${src?`<img class="feed-img-el" src="${src}" alt="">`:'<div class="f-media-ph">画像をアップロード<br>1440×1440px</div>'}
+      </div>
+      <div class="f-ctabar">
+        <div><div class="f-cta-hl">${hl}</div><div class="f-cta-url">${url}</div></div>
+        <button class="f-cta-btn">詳しくはこちら</button>
+      </div>
+      <div class="f-reactions">
+        <div class="f-react-l">👍❤️ 14 · コメント2K件</div>
+        <div class="f-react-r"><span>いいね！</span><span>コメント</span><span>シェア</span></div>
+      </div>
+    </div>
+    <div class="f-nav">
+      <span class="f-nav-i">🏠</span>
+      <span class="f-nav-i" style="color:#1877f2">▣</span>
+      <span class="f-nav-i">👥</span>
+      <span class="f-nav-i">🔔</span>
+      <span class="f-nav-i">☰</span>
+    </div>
+  </div>`;
+}
+
+function phoneSVG(w,h){
+  const nb=h*.06;
+  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="${w-2}" height="${h-2}" rx="16" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+    <rect x="5" y="5" width="${w-10}" height="${h-10}" rx="13" fill="#000"/>
+    <rect x="${w/2-13}" y="8" width="26" height="3.5" rx="1.75" fill="#2a2a2a"/>
+    <rect x="${w/2-3}" y="8.5" width="6" height="2.5" rx="1.25" fill="#444"/>
+    <rect x="0.5" y="${h*.24}" width="2.5" height="${nb}" rx="1.25" fill="#2a2a2a"/>
+    <rect x="0.5" y="${h*.24+nb+6}" width="2.5" height="${nb}" rx="1.25" fill="#2a2a2a"/>
+    <rect x="${w-3}" y="${h*.3}" width="2.5" height="${nb*1.4}" rx="1.25" fill="#2a2a2a"/>
+  </svg>`;
+}
+
+function render(){
+  const fmt=FMTS[cur];
+  const showSZ=document.getElementById('szchk').checked;
+  const PW=fmt.pw,PH=fmt.ph,SX=fmt.sx,SY=fmt.sy;
+  const SW=PW-SX*2,SH=PH-SY*2;
+  document.getElementById('pvlbl').textContent=fmt.title+' プレビュー';
+  document.getElementById('ptitle').textContent=fmt.title;
+  const iarea=document.getElementById('iarea');
+  if(iarea._k!==cur){
+    iarea.innerHTML=`<div class="spec-box">${fmt.spec}</div><div class="divider"></div>${fmt.fields()}`;
+    iarea._k=cur;
+    const imgPrev=document.getElementById('prev-img');
+    if(imgPrev&&imgs['img'+cur]){imgPrev.src=imgs['img'+cur];imgPrev.style.display='block';}
+  }
+  const hasSZ=fmt.safeT||fmt.safeB||fmt.safeS;
+  document.getElementById('szwrap').style.display=hasSZ?'flex':'none';
+  let szHTML='';
+  if(showSZ&&hasSZ){
+    const tH=Math.round(SH*fmt.safeT/100);
+    const bH=Math.round(SH*fmt.safeB/100);
+    const sW=Math.round(SW*fmt.safeS/100);
+    szHTML=`
+      ${fmt.safeT?`<div class="sz-top" style="height:${tH}px"></div>`:''}
+      ${fmt.safeB?`<div class="sz-bottom" style="height:${bH}px"></div>`:''}
+      ${fmt.safeS?`<div class="sz-left" style="width:${sW}px"></div><div class="sz-right" style="width:${sW}px"></div>`:''}`;
+  }
+  document.getElementById('pmount').innerHTML=`
+    <div class="phone" style="width:${PW}px;height:${PH}px;position:relative">
+      <div class="phone-shell" style="position:absolute;inset:0;z-index:10;pointer-events:none">${phoneSVG(PW,PH)}</div>
+      <div class="phone-screen" style="top:${SY}px;left:${SX}px;width:${SW}px;height:${SH}px;border-radius:11px;z-index:1">
+        <div class="phone-inner" style="position:relative">${fmt.html()}${szHTML}</div>
+      </div>
+    </div>`;
+}
+
+function dlPNG(){
+  const note=document.getElementById('dlnote');
+  note.textContent='生成中...';
+  html2canvas(document.getElementById('pmount'),{scale:2,backgroundColor:null,useCORS:true,logging:false}).then(c=>{
+    const a=document.createElement('a');
+    a.href=c.toDataURL('image/png');
+    a.download=cur+'_preview.png';
+    a.click();
+    note.textContent='保存しました: '+cur+'_preview.png';
+    setTimeout(()=>{note.textContent='';},3000);
+  }).catch(()=>{note.textContent='失敗しました。再試行してください。';});
+}
+
+(function(){
+  const wrap=document.getElementById('tabs');
+  TABS.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='tab'+(t.id===cur?' on':'');
+    b.textContent=t.label;
+    b.onclick=()=>{
+      cur=t.id;
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      document.getElementById('iarea')._k=null;
+      document.getElementById('szchk').checked=false;
+      render();
+    };
+    wrap.appendChild(b);
+  });
+  render();
+})();
+</script>
+</body>
+</html>
